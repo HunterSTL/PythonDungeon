@@ -16,7 +16,10 @@ class GridObject:
         self.Grid = Grid
 
     def Get(self, X, Y):
-        return self.Grid[self.Rows - Y][X - 1]
+        if 1 <= X <= self.Columns and 1 <= Y <= self.Rows:
+            return self.Grid[self.Rows - Y][X - 1]
+        else:
+            return None
 
     def Set(self, X, Y, ID):
         self.Grid[self.Rows - Y][X - 1] = ID
@@ -34,7 +37,9 @@ class GridObject:
 Debug = 0
 GridWidth = 30
 GridHeight = 20
-GridScaling = 25
+GridScaling = 20
+RubbleCount = GridWidth * GridHeight // 4
+
 Grid = GridObject()
 Grid.Create(GridHeight, GridWidth)
 
@@ -46,6 +51,13 @@ Icon = {
 }
 
 PlayerPosition = (GridWidth // 2, GridHeight // 2)  # Initial player position
+
+
+def CreateWalls():
+    for X in range(1, GridWidth + 1):
+        for Y in range(1, GridHeight + 1):
+            if X == 1 or X == GridWidth or Y == 1 or Y == GridHeight:
+                Grid.Set(X, Y, 1)
 
 
 def AddOpenings():
@@ -67,23 +79,74 @@ def AddOpenings():
             Grid.Set(X, Y, 2)
 
 
-def CreateWalls():
-    for x in range(1, GridWidth + 1):
-        for y in range(1, GridHeight + 1):
-            if x == 1 or x == GridWidth or y == 1 or y == GridHeight:
-                Grid.Set(x, y, 1)
+def AddRubble():
+    count = 0  # Counter to keep track of added rubble
+
+    while count < RubbleCount:
+        # Generate a random line segment within the grid
+        if random.random() < 0.5:
+            # Horizontal line
+            X = random.randint(2, GridWidth - 1)
+            Y = random.randint(2, GridHeight - 1)
+            Length = random.randint(1, GridWidth // 2)
+            DeltaX = 1
+            DeltaY = 0
+        else:
+            # Vertical line
+            X = random.randint(2, GridWidth - 1)
+            Y = random.randint(2, GridHeight - 1)
+            Length = random.randint(1, GridHeight // 2)
+            DeltaX = 0
+            DeltaY = 1
+
+        # Check if the line segment intersects with any openings or rooms
+        is_valid = True
+
+        for _ in range(Length):
+            if Grid.Get(X, Y) != 0 and Grid.Get(X, Y) != 1:
+                is_valid = False
+                break
+            X += DeltaX
+            Y += DeltaY
+
+        if is_valid:
+            # Add the line segment as walls
+            X = X - DeltaX
+            Y = Y - DeltaY
+
+            for _ in range(Length):
+                Grid.Set(X, Y, 1)
+                count += 1
+                X -= DeltaX
+                Y -= DeltaY
+
+        if count >= RubbleCount:
+            return  # Exit the function if the desired RubbleCount is reached
 
 
 def CreateLevel():
     CreateWalls()
     AddOpenings()
+    AddRubble()
 
 
 def PlacePlayer():
     global PlayerPosition
-    x, y = PlayerPosition
-    if Grid.Get(x, y) == 0:
-        Grid.Set(x, y, 'P')
+    EmptyBlocks = []
+
+    # Collect all empty blocks as potential starting positions
+    for X in range(1, GridWidth + 1):
+        for Y in range(1, GridHeight + 1):
+            if Grid.Get(X, Y) == 0:
+                EmptyBlocks.append((X, Y))
+
+    # Choose a random empty block from the available options
+    if EmptyBlocks:
+        PlayerPosition = random.choice(EmptyBlocks)
+
+    # Set the chosen position as the player's starting point
+    X, Y = PlayerPosition
+    Grid.Set(X, Y, 'P')
 
 
 def DebugScreen():
@@ -102,20 +165,20 @@ def DrawPlayer(Screen, X, Y):
     pygame.draw.rect(Screen, PlayerColor, body_rect)
 
     # Calculate the positions for the eyes and mouth
-    eye_radius = GridScaling // 5
-    eye_y = Y * GridScaling + GridScaling // 3
-    eye_left_x = X * GridScaling + GridScaling // 4
-    eye_right_x = X * GridScaling + GridScaling // 4 * 3
+    EyeRadius = GridScaling // 5
+    EyeY = Y * GridScaling + GridScaling // 3
+    EyeLeftX = X * GridScaling + GridScaling // 4
+    EyeRightX = X * GridScaling + GridScaling // 4 * 3
     mouth_y = Y * GridScaling + GridScaling // 2 + GridScaling // 4
 
     # Draw the eyes (black circles)
-    pygame.draw.circle(Screen, EyeColor, (eye_left_x, eye_y), eye_radius)
-    pygame.draw.circle(Screen, EyeColor, (eye_right_x, eye_y), eye_radius)
+    pygame.draw.circle(Screen, EyeColor, (EyeLeftX, EyeY), EyeRadius)
+    pygame.draw.circle(Screen, EyeColor, (EyeRightX, EyeY), EyeRadius)
 
     # Draw the mouth (black line)
-    mouth_start_x = X * GridScaling + GridScaling // 4
-    mouth_end_x = X * GridScaling + GridScaling // 4 * 3
-    pygame.draw.line(Screen, MouthColor, (mouth_start_x, mouth_y), (mouth_end_x, mouth_y), 2)
+    MouthStartX = X * GridScaling + GridScaling // 4
+    MouthEndX = X * GridScaling + GridScaling // 4 * 3
+    pygame.draw.line(Screen, MouthColor, (MouthStartX, mouth_y), (MouthEndX, mouth_y), 2)
 
 
 def MovePlayer(DeltaX, DeltaY):
@@ -154,6 +217,8 @@ def UpdateScreen():
                     MovePlayer(-1, 0)
                 elif event.key == pygame.K_RIGHT:
                     MovePlayer(1, 0)
+                if Debug == 1:
+                    DebugScreen()
 
         Screen.fill((0, 0, 0))
 
