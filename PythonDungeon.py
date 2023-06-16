@@ -1,9 +1,9 @@
 import pygame
-import numpy as np
 import random
-import math
 
 class Block:
+    Instances = []
+
     def __init__(self, ID, Name, X, Y, Mineability, Collision, Color):
         self.ID = ID
         self.Name = Name
@@ -12,19 +12,27 @@ class Block:
         self.Mineability = Mineability
         self.Collision = Collision
         self.Color = Color
+        Block.Instances.append(self)
 
-    def PrintID(self):
-        print(str(self.Color))
+    @classmethod
+    def Create(cls, ID, Name, X, Y, Mineability, Collision, Color):
+        Block = cls(ID, Name, X, Y, Mineability, Collision, Color)
+        return Block
+
+    def Set(self, X, Y):
+        self.X = X
+        self.Y = Y
 
 class Level:
     def Create(self, Rows, Columns):
         self.Rows = Rows
         self.Columns = Columns
         Grid = []
-        for y in range(Rows, 0, -1):
+        for Y in range(Rows, 0, -1):
             Row = []
-            for x in range(1, Columns + 1):
-                Row.append(Blocks['Floor'])
+            for X in range(1, Columns + 1):
+                Block = Blocks['Floor'].Create(0, 'Floor', None, None, 0, 0, (200, 200, 200))
+                Row.append(Block)
             Grid.append(Row)
         self.Grid = Grid
 
@@ -35,10 +43,10 @@ class Level:
             return None
 
     def Set(self, X, Y, Blockname):
-        Block = Blocks[Blockname]
-        Block.X = X
-        Block.Y = Y
+        Block = Blocks[Blockname].Create(Blocks[Blockname].ID, Blockname, X, Y, Blocks[Blockname].Mineability, Blocks[Blockname].Collision, Blocks[Blockname].Color)
+        Block.Set(X, Y)
         self.Grid[self.Rows - Y][X - 1] = Block
+        Block.Instances.append(Block)
 
         if Blockname == 'Opening':
             self.StoreOpening(Block)
@@ -50,10 +58,10 @@ class Level:
 
 
 Blocks = {
-    'Player': Block('P', 'Player', None, None, 0, 0, (255, 0, 0)),
-    'Floor': Block(0, 'Floor', None, None, 0, 0, (200, 200, 200)),
-    'Wall': Block(1, 'Wall', None, None, 5, 1, (100, 100, 100)),
-    'Opening': Block(2, 'Opening', None, None, 0, 1, (0, 0, 0))
+    'Player': Block.Create('P', 'Player', None, None, 0, 0, (255, 0, 0)),
+    'Floor': Block.Create(0, 'Floor', None, None, 0, 0, (200, 200, 200)),
+    'Wall': Block.Create(1, 'Wall', None, None, 5, 1, (100, 100, 100)),
+    'Opening': Block.Create(2, 'Opening', None, None, 0, 1, (0, 0, 0))
 }
 
 def CreateWalls():
@@ -149,7 +157,7 @@ def PlacePlayer():
     for X in range(1, GridWidth + 1):
         for Y in range(1, GridHeight + 1):
             Block = Level.Get(X, Y)
-            if Block is not None:            
+            if Block is not None:
                 if Block.Name == 'Floor':
                     EmptyBlocks.append((X, Y))
 
@@ -164,7 +172,7 @@ def PlacePlayer():
 
 def DebugScreen():
     for Row in Level.Grid:
-        RowString = ''.join([str(Block.ID) for Block in Row])
+        RowString = ''.join([str(Block.Mineability) for Block in Row])
         print(RowString)
     print('-' * GridWidth)
 
@@ -195,6 +203,22 @@ def DrawPlayer(Screen, X, Y):
     pygame.draw.line(Screen, MouthColor, (MouthStartX, mouth_y), (MouthEndX, mouth_y), 2)
 
 
+def HandleCollision(X, Y):
+    Block = Level.Get(X, Y)
+    print('Coordinates: ' + str(X) + '|' + str(Y))
+    print('Block: ' + str(Block.X) + '|' + str(Block.Y))
+
+    if Block is not None:
+        if Block.Mineability > 1:
+            print(str(Block.Mineability))
+            Block.Mineability -= 1
+        elif Block.Mineability == 1:
+            print(str(Block.Mineability))
+            Level.Set(X, Y, 'Floor')
+        else:
+            return
+
+
 def MovePlayer(DeltaX, DeltaY):
     global PlayerPosition
     X, Y = PlayerPosition
@@ -209,6 +233,8 @@ def MovePlayer(DeltaX, DeltaY):
         Level.Set(X, Y, 'Floor')
         Level.Set(NewX, NewY, 'Player')
         PlayerPosition = (NewX, NewY)
+    else:
+        HandleCollision(NewX, NewY)
 
 
 def UpdateScreen():
@@ -242,20 +268,21 @@ def UpdateScreen():
 
         for Y, Row in enumerate(Level.Grid):
             for X, Block in enumerate(Row):
-                if Block.Name == 'Player':
-                    DrawPlayer(Screen, X, Y)
-                else:
-                    Square = pygame.Rect(X * GridScaling, Y * GridScaling, GridScaling, GridScaling)
-                    pygame.draw.rect(Screen, Block.Color, Square)
+                if Block is not None:
+                    if Block.Name == 'Player':
+                        DrawPlayer(Screen, X, Y)
+                    else:
+                        Square = pygame.Rect(X * GridScaling, Y * GridScaling, GridScaling, GridScaling)
+                        pygame.draw.rect(Screen, Block.Color, Square)
 
         pygame.display.flip()
         Clock.tick(60)
 
 
-Debug = 0
+Debug = 1
 GridWidth = 30
 GridHeight = 20
-GridScaling = 20
+GridScaling = 25
 RubbleCount = GridWidth * GridHeight // 4
 
 Level = Level()
