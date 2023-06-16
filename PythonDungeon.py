@@ -195,9 +195,9 @@ def AddChests():
 
 
 def CreateLevel():
+    AddRubble()
     CreateWalls()
     AddOpenings()
-    AddRubble()
     AddChests()
 
 
@@ -253,6 +253,28 @@ def DrawPlayer(Screen, X, Y):
     MouthStartX = X * GridScaling + GridScaling // 4
     MouthEndX = X * GridScaling + GridScaling // 4 * 3
     pygame.draw.line(Screen, MouthColor, (MouthStartX, mouth_y), (MouthEndX, mouth_y), 2)
+
+
+def DrawChest(Screen, X, Y):
+    WoodColor = (140, 70, 20)  # Brown
+    LockColor = (155, 155, 155)  # Grey
+    LineColor = (0, 0, 0)  # Black
+
+    # Draw the wooden box
+    body_rect = pygame.Rect(X * GridScaling + 2, Y * GridScaling + 2, GridScaling - 4, GridScaling - 4)
+    pygame.draw.rect(Screen, WoodColor, body_rect)
+
+    # Draw the black line
+    LineY = Y * GridScaling + GridScaling // 3
+    LineStartX = X * GridScaling
+    LineEndX = X * GridScaling + GridScaling
+    pygame.draw.line(Screen, LineColor, (LineStartX, LineY), (LineEndX, LineY), 2)
+
+    # Draw the lock
+    LineY = Y * GridScaling + GridScaling // 3
+    LineStartX = X * GridScaling + GridScaling // 2 - GridScaling // 8
+    LineEndX = X * GridScaling + GridScaling // 2 + GridScaling // 8
+    pygame.draw.line(Screen, LockColor, (LineStartX, LineY), (LineEndX, LineY), GridScaling // 3)
 
 
 def HandleCollision(X, Y):
@@ -328,6 +350,8 @@ def UpdateScreen():
                 if Block is not None:
                     if Block.Name == 'Player':
                         DrawPlayer(Screen, X, Y)
+                    elif Block.Name == 'Chest':
+                        DrawChest(Screen, X, Y)
                     else:
                         Square = pygame.Rect(X * GridScaling, Y * GridScaling, GridScaling, GridScaling)
                         pygame.draw.rect(Screen, Block.Color, Square)
