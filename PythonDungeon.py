@@ -3,7 +3,20 @@ import numpy as np
 import random
 import math
 
-class GridObject:
+class Block:
+    def __init__(self, ID, Name, X, Y, Mineability, Collision, Color):
+        self.ID = ID
+        self.Name = Name
+        self.X = X
+        self.Y = Y
+        self.Mineability = Mineability
+        self.Collision = Collision
+        self.Color = Color
+
+    def PrintID(self):
+        print(str(self.Color))
+
+class Level:
     def Create(self, Rows, Columns):
         self.Rows = Rows
         self.Columns = Columns
@@ -11,7 +24,7 @@ class GridObject:
         for y in range(Rows, 0, -1):
             Row = []
             for x in range(1, Columns + 1):
-                Row.append(0)
+                Row.append(Blocks['Floor'])
             Grid.append(Row)
         self.Grid = Grid
 
@@ -21,43 +34,33 @@ class GridObject:
         else:
             return None
 
-    def Set(self, X, Y, ID):
-        self.Grid[self.Rows - Y][X - 1] = ID
+    def Set(self, X, Y, Blockname):
+        Block = Blocks[Blockname]
+        Block.X = X
+        Block.Y = Y
+        self.Grid[self.Rows - Y][X - 1] = Block
 
-        # if ID equals 2 (=Opening) store Coordinates of Opening with method StoreOpenings
-        if ID == 2:
-            self.StoreOpening(X, Y)
+        if Blockname == 'Opening':
+            self.StoreOpening(Block)
 
-    def StoreOpening(self, X, Y):
+    def StoreOpening(self, Block):
         if not hasattr(self, 'Openings'):
             self.Openings = []
-        self.Openings.append((X, Y))
+        self.Openings.append(Block)
 
 
-Debug = 0
-GridWidth = 30
-GridHeight = 20
-GridScaling = 20
-RubbleCount = GridWidth * GridHeight // 4
-
-Grid = GridObject()
-Grid.Create(GridHeight, GridWidth)
-
-Icon = {
-    0: (200, 200, 200),  # Floor block (light grey)
-    1: (100, 100, 100),  # Wall block (dark grey)
-    2: (255, 255, 255),  # Opening block (white)
-    'P': (255, 0, 0)     # Player block (red)
+Blocks = {
+    'Player': Block('P', 'Player', None, None, 0, 0, (255, 0, 0)),
+    'Floor': Block(0, 'Floor', None, None, 0, 0, (200, 200, 200)),
+    'Wall': Block(1, 'Wall', None, None, 5, 1, (100, 100, 100)),
+    'Opening': Block(2, 'Opening', None, None, 0, 1, (0, 0, 0))
 }
-
-PlayerPosition = (GridWidth // 2, GridHeight // 2)  # Initial player position
-
 
 def CreateWalls():
     for X in range(1, GridWidth + 1):
         for Y in range(1, GridHeight + 1):
             if X == 1 or X == GridWidth or Y == 1 or Y == GridHeight:
-                Grid.Set(X, Y, 1)
+                Level.Set(X, Y, 'Wall')
 
 
 def AddOpenings():
@@ -75,15 +78,18 @@ def AddOpenings():
             X = 1
             Y = random.randint(2, GridHeight - 1)
 
-        if Grid.Get(X, Y) == 1:
-            Grid.Set(X, Y, 2)
+        Block = Level.Get(X, Y)
+
+        if Block is not None:
+            if Block.Name == 'Wall':
+                Level.Set(X, Y, 'Opening')
 
 
 def AddRubble():
     count = 0  # Counter to keep track of added rubble
 
     while count < RubbleCount:
-        # Generate a random line segment within the grid
+        # Generate a random line segment within the Level
         if random.random() < 0.5:
             # Horizontal line
             X = random.randint(2, GridWidth - 1)
@@ -99,23 +105,28 @@ def AddRubble():
             DeltaX = 0
             DeltaY = 1
 
-        # Check if the line segment intersects with any openings or rooms
-        is_valid = True
+        # Check if the line segment intersects with any openings or Levels
+        Valid = True
 
         for _ in range(Length):
-            if Grid.Get(X, Y) != 0 and Grid.Get(X, Y) != 1:
-                is_valid = False
+            Block = Level.Get(X, Y)
+            if Block is None:
+                Valid = False
+                break
+
+            if Block.Name != 'Floor' and Block.Name != 'Wall':
+                Valid = False
                 break
             X += DeltaX
             Y += DeltaY
 
-        if is_valid:
+        if Valid:
             # Add the line segment as walls
             X = X - DeltaX
             Y = Y - DeltaY
 
             for _ in range(Length):
-                Grid.Set(X, Y, 1)
+                Level.Set(X, Y, 'Wall')
                 count += 1
                 X -= DeltaX
                 Y -= DeltaY
@@ -137,8 +148,10 @@ def PlacePlayer():
     # Collect all empty blocks as potential starting positions
     for X in range(1, GridWidth + 1):
         for Y in range(1, GridHeight + 1):
-            if Grid.Get(X, Y) == 0:
-                EmptyBlocks.append((X, Y))
+            Block = Level.Get(X, Y)
+            if Block is not None:            
+                if Block.Name == 'Floor':
+                    EmptyBlocks.append((X, Y))
 
     # Choose a random empty block from the available options
     if EmptyBlocks:
@@ -146,13 +159,14 @@ def PlacePlayer():
 
     # Set the chosen position as the player's starting point
     X, Y = PlayerPosition
-    Grid.Set(X, Y, 'P')
+    Level.Set(X, Y, 'Player')
 
 
 def DebugScreen():
-    for Row in Grid.Grid:
-        RowString = ''.join([str(ID) for ID in Row])
+    for Row in Level.Grid:
+        RowString = ''.join([str(Block.ID) for Block in Row])
         print(RowString)
+    print('-' * GridWidth)
 
 
 def DrawPlayer(Screen, X, Y):
@@ -186,10 +200,14 @@ def MovePlayer(DeltaX, DeltaY):
     X, Y = PlayerPosition
     NewX = X + DeltaX
     NewY = Y + DeltaY
+    Block = Level.Get(NewX, NewY)
 
-    if Grid.Get(NewX, NewY) == 0:
-        Grid.Set(X, Y, 0)
-        Grid.Set(NewX, NewY, 'P')
+    if Block is None:
+        return
+
+    if Block.Collision == 0:
+        Level.Set(X, Y, 'Floor')
+        Level.Set(NewX, NewY, 'Player')
         PlayerPosition = (NewX, NewY)
 
 
@@ -222,17 +240,26 @@ def UpdateScreen():
 
         Screen.fill((0, 0, 0))
 
-        for Y, Row in enumerate(Grid.Grid):
-            for X, ID in enumerate(Row):
-                if ID == 'P':
+        for Y, Row in enumerate(Level.Grid):
+            for X, Block in enumerate(Row):
+                if Block.Name == 'Player':
                     DrawPlayer(Screen, X, Y)
                 else:
                     Square = pygame.Rect(X * GridScaling, Y * GridScaling, GridScaling, GridScaling)
-                    pygame.draw.rect(Screen, Icon[ID], Square)
+                    pygame.draw.rect(Screen, Block.Color, Square)
 
         pygame.display.flip()
         Clock.tick(60)
 
+
+Debug = 0
+GridWidth = 30
+GridHeight = 20
+GridScaling = 20
+RubbleCount = GridWidth * GridHeight // 4
+
+Level = Level()
+Level.Create(GridHeight, GridWidth)
 
 CreateLevel()
 PlacePlayer()
