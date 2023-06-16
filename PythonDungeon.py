@@ -15,9 +15,13 @@ class Block:
         Block.Instances.append(self)
 
     @classmethod
-    def Create(cls, ID, Name, X, Y, Mineability, Collision, Color):
-        Block = cls(ID, Name, X, Y, Mineability, Collision, Color)
-        return Block
+    def Create(cls, Blockname, X, Y):
+        BlockDictionary = Blocks[Blockname]
+
+        if BlockDictionary is not None:
+            _Block = cls(BlockDictionary.ID, Blockname, X, Y, BlockDictionary.Mineability, BlockDictionary.Collision, BlockDictionary.Color)
+            Block.Instances.append(_Block)
+            return _Block
 
     def Set(self, X, Y):
         self.X = X
@@ -31,8 +35,8 @@ class Level:
         for Y in range(Rows, 0, -1):
             Row = []
             for X in range(1, Columns + 1):
-                Block = Blocks['Floor'].Create(0, 'Floor', None, None, 0, 0, (200, 200, 200))
-                Row.append(Block)
+                _Block = Block.Create('Floor', X, Y)
+                Row.append(_Block)
             Grid.append(Row)
         self.Grid = Grid
 
@@ -43,13 +47,17 @@ class Level:
             return None
 
     def Set(self, X, Y, Blockname):
-        Block = Blocks[Blockname].Create(Blocks[Blockname].ID, Blockname, X, Y, Blocks[Blockname].Mineability, Blocks[Blockname].Collision, Blocks[Blockname].Color)
-        Block.Set(X, Y)
-        self.Grid[self.Rows - Y][X - 1] = Block
-        Block.Instances.append(Block)
+        #Create Instance of Block
+        _Block = Block.Create(Blockname, X, Y)
+        #Fill Coordinates on Block
+        _Block.Set(X, Y)
+        #Insert Block into Grid
+        self.Grid[self.Rows - Y][X - 1] = _Block
+        #Insert Block into Array on Class Block
+        _Block.Instances.append(_Block)
 
         if Blockname == 'Opening':
-            self.StoreOpening(Block)
+            self.StoreOpening(_Block)
 
     def StoreOpening(self, Block):
         if not hasattr(self, 'Openings'):
@@ -58,10 +66,10 @@ class Level:
 
 
 Blocks = {
-    'Player': Block.Create('P', 'Player', None, None, 0, 0, (255, 0, 0)),
-    'Floor': Block.Create(0, 'Floor', None, None, 0, 0, (200, 200, 200)),
-    'Wall': Block.Create(1, 'Wall', None, None, 5, 1, (100, 100, 100)),
-    'Opening': Block.Create(2, 'Opening', None, None, 0, 1, (0, 0, 0))
+    'Player': Block('P', 'Player', None, None, 0, 0, (255, 0, 0)),
+    'Floor': Block(0, 'Floor', None, None, 0, 0, (200, 200, 200)),
+    'Wall': Block(1, 'Wall', None, None, 5, 1, (100, 100, 100)),
+    'Opening': Block(2, 'Opening', None, None, 0, 1, (0, 0, 0))
 }
 
 def CreateWalls():
@@ -175,6 +183,9 @@ def DebugScreen():
         RowString = ''.join([str(Block.Mineability) for Block in Row])
         print(RowString)
     print('-' * GridWidth)
+
+    for i in range(len(Block.Instances)):
+        print(str(i))
 
 
 def DrawPlayer(Screen, X, Y):
