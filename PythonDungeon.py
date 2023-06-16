@@ -2,25 +2,22 @@ import pygame
 import random
 
 class Block:
-    Instances = []
-
-    def __init__(self, ID, Name, X, Y, Mineability, Collision, Color):
+    def __init__(self, ID, Name, X, Y, Mineability, Collision, Storage, Color):
         self.ID = ID
         self.Name = Name
         self.X = X
         self.Y = Y
         self.Mineability = Mineability
         self.Collision = Collision
+        self.Storage = Storage
         self.Color = Color
-        Block.Instances.append(self)
 
     @classmethod
     def Create(cls, Blockname, X, Y):
         BlockDictionary = Blocks[Blockname]
 
         if BlockDictionary is not None:
-            _Block = cls(BlockDictionary.ID, Blockname, X, Y, BlockDictionary.Mineability, BlockDictionary.Collision, BlockDictionary.Color)
-            Block.Instances.append(_Block)
+            _Block = cls(BlockDictionary.ID, Blockname, X, Y, BlockDictionary.Mineability, BlockDictionary.Collision, BlockDictionary.Storage, BlockDictionary.Color)
             return _Block
 
     def Set(self, X, Y):
@@ -53,8 +50,6 @@ class Level:
         _Block.Set(X, Y)
         #Insert Block into Grid
         self.Grid[self.Rows - Y][X - 1] = _Block
-        #Insert Block into Array on Class Block
-        _Block.Instances.append(_Block)
 
         if Blockname == 'Opening':
             self.StoreOpening(_Block)
@@ -66,10 +61,11 @@ class Level:
 
 
 Blocks = {
-    'Player': Block('P', 'Player', None, None, 0, 0, (255, 0, 0)),
-    'Floor': Block(0, 'Floor', None, None, 0, 0, (200, 200, 200)),
-    'Wall': Block(1, 'Wall', None, None, 5, 1, (100, 100, 100)),
-    'Opening': Block(2, 'Opening', None, None, 0, 1, (0, 0, 0))
+    'Player': Block('P', 'Player', None, None, 0, 0, 0, (255, 0, 0)),
+    'Floor': Block(0, 'Floor', None, None, 0, 0, 0, (200, 200, 200)),
+    'Wall': Block(1, 'Wall', None, None, 5, 1, 0, (100, 100, 100)),
+    'Opening': Block(2, 'Opening', None, None, 0, 1, 0, (0, 0, 0)),
+    'Chest': Block(3, 'Chest', None, None, 0, 1, 1, (140, 70, 20))
 }
 
 def CreateWalls():
@@ -77,6 +73,14 @@ def CreateWalls():
         for Y in range(1, GridHeight + 1):
             if X == 1 or X == GridWidth or Y == 1 or Y == GridHeight:
                 Level.Set(X, Y, 'Wall')
+                #Create Instance of Block
+                _Block = Block.Create('Wall', X, Y)
+                #Fill Coordinates on Block
+                _Block.Set(X, Y)
+                #Make Border Walls indestructible
+                _Block.Mineability = 0
+                #Insert Block into Grid
+                Level.Grid[Level.Rows - Y][X - 1] = _Block
 
 
 def AddOpenings():
@@ -151,10 +155,50 @@ def AddRubble():
             return  # Exit the function if the desired RubbleCount is reached
 
 
+def AddChests():
+    EmptyBlocks = []
+
+    # Collect all empty blocks as potential starting positions
+    for X in range(1, GridWidth + 1):
+        for Y in range(1, GridHeight + 1):
+            Block = Level.Get(X, Y)
+            if Block is not None:
+                if Block.Name == 'Floor':
+                    EmptyBlocks.append((X, Y))
+
+    ChestCount = 0
+    DesiredChestCount = random.randint(ChestCountMin, ChestCountMax)
+    print('ChestCount: ' + str(DesiredChestCount))
+
+    while ChestCount < DesiredChestCount:
+        if not EmptyBlocks:
+            break
+
+        # Choose a random empty block from the available options
+        X, Y = random.choice(EmptyBlocks)
+        Block = Level.Get(X, Y)
+
+        # Check if the chosen block touches two or more wall blocks
+        WallCount = 0
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            AdjacentBlock = Level.Get(X + dx, Y + dy)
+            if AdjacentBlock is not None and AdjacentBlock.Name == 'Wall':
+                WallCount += 1
+
+        if WallCount >= 3:
+            # Place the chest block
+            Level.Set(X, Y, 'Chest')
+            ChestCount += 1
+
+        # Remove the chosen block from the list of empty blocks
+        EmptyBlocks.remove((X, Y))
+
+
 def CreateLevel():
     CreateWalls()
     AddOpenings()
     AddRubble()
+    AddChests()
 
 
 def PlacePlayer():
@@ -183,9 +227,6 @@ def DebugScreen():
         RowString = ''.join([str(Block.Mineability) for Block in Row])
         print(RowString)
     print('-' * GridWidth)
-
-    for i in range(len(Block.Instances)):
-        print(str(i))
 
 
 def DrawPlayer(Screen, X, Y):
@@ -223,6 +264,11 @@ def HandleCollision(X, Y):
         if Block.Mineability > 1:
             print(str(Block.Mineability))
             Block.Mineability -= 1
+            RGB = list(Block.Color)
+            RGB[0] = RGB[0] // 1.2
+            RGB[1] = RGB[1] // 1.2
+            RGB[2] = RGB[2] // 1.2
+            Block.Color = (RGB[0], RGB[1], RGB[2])
         elif Block.Mineability == 1:
             print(str(Block.Mineability))
             Level.Set(X, Y, 'Floor')
@@ -294,7 +340,9 @@ Debug = 1
 GridWidth = 30
 GridHeight = 20
 GridScaling = 25
-RubbleCount = GridWidth * GridHeight // 4
+RubbleCount = GridWidth * GridHeight // 3
+ChestCountMin = 1
+ChestCountMax = 5
 
 Level = Level()
 Level.Create(GridHeight, GridWidth)
