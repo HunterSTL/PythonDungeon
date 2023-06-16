@@ -63,24 +63,28 @@ class Level:
 Blocks = {
     'Player': Block('P', 'Player', None, None, 0, 0, 0, (255, 0, 0)),
     'Floor': Block(0, 'Floor', None, None, 0, 0, 0, (200, 200, 200)),
-    'Wall': Block(1, 'Wall', None, None, 5, 1, 0, (100, 100, 100)),
-    'Opening': Block(2, 'Opening', None, None, 0, 1, 0, (0, 0, 0)),
-    'Chest': Block(3, 'Chest', None, None, 0, 1, 1, (140, 70, 20))
+    'WallBorder': Block(1, 'Wall1', None, None, 0, 1, 0, (80, 80, 80)),
+    'WallSoft': Block(2, 'Wall2', None, None, 5, 1, 0, (70, 70, 70)),
+    'WallMedium': Block(3, 'Wall3', None, None, 10, 1, 0, (60, 60, 60)),
+    'WallHard': Block(3, 'Wall3', None, None, 15, 1, 0, (50, 50, 50)),
+    'Opening': Block(4, 'Opening', None, None, 0, 1, 0, (0, 0, 0)),
+    'Chest': Block(5, 'Chest', None, None, 0, 1, 1, (140, 70, 20))
 }
+
+
+def GetWallName(Variant):
+    if Variant == 1:
+        return 'WallSoft'
+    elif Variant == 2:
+        return 'WallMedium'
+    else:
+        return 'WallHard'
 
 def CreateWalls():
     for X in range(1, GridWidth + 1):
         for Y in range(1, GridHeight + 1):
             if X == 1 or X == GridWidth or Y == 1 or Y == GridHeight:
-                Level.Set(X, Y, 'Wall')
-                #Create Instance of Block
-                _Block = Block.Create('Wall', X, Y)
-                #Fill Coordinates on Block
-                _Block.Set(X, Y)
-                #Make Border Walls indestructible
-                _Block.Mineability = 0
-                #Insert Block into Grid
-                Level.Grid[Level.Rows - Y][X - 1] = _Block
+                Level.Set(X, Y, 'WallBorder')
 
 
 def AddOpenings():
@@ -101,7 +105,7 @@ def AddOpenings():
         Block = Level.Get(X, Y)
 
         if Block is not None:
-            if Block.Name == 'Wall':
+            if Block.Name[0:4] == 'Wall':
                 Level.Set(X, Y, 'Opening')
 
 
@@ -134,7 +138,7 @@ def AddRubble():
                 Valid = False
                 break
 
-            if Block.Name != 'Floor' and Block.Name != 'Wall':
+            if Block.Name != 'Floor' and Block.Name[0:4] != 'Wall':
                 Valid = False
                 break
             X += DeltaX
@@ -146,7 +150,7 @@ def AddRubble():
             Y = Y - DeltaY
 
             for _ in range(Length):
-                Level.Set(X, Y, 'Wall')
+                Level.Set(X, Y, GetWallName(random.randint(1,3)))
                 count += 1
                 X -= DeltaX
                 Y -= DeltaY
@@ -182,7 +186,7 @@ def AddChests():
         WallCount = 0
         for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             AdjacentBlock = Level.Get(X + dx, Y + dy)
-            if AdjacentBlock is not None and AdjacentBlock.Name == 'Wall':
+            if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
                 WallCount += 1
 
         if WallCount >= 3:
@@ -224,7 +228,7 @@ def PlacePlayer():
 
 def DebugScreen():
     for Row in Level.Grid:
-        RowString = ''.join([str(Block.Mineability) for Block in Row])
+        RowString = ''.join([str(Block.ID) for Block in Row])
         print(RowString)
     print('-' * GridWidth)
 
@@ -277,22 +281,29 @@ def DrawChest(Screen, X, Y):
     pygame.draw.line(Screen, LockColor, (LineStartX, LineY), (LineEndX, LineY), GridScaling // 3)
 
 
-def HandleCollision(X, Y):
-    Block = Level.Get(X, Y)
-    print('Coordinates: ' + str(X) + '|' + str(Y))
-    print('Block: ' + str(Block.X) + '|' + str(Block.Y))
+def ClearMiningProgress():
+    for X in range(1, GridWidth + 1):
+        for Y in range(1, GridHeight + 1):
+            _Block = Level.Get(X, Y)
+            if _Block.Name[0:4] == 'Wall' and _Block.Name != 'WallBorder':
+                _Block.Mineability = Blocks[_Block.Name].Mineability
+                _Block.Color = Blocks[_Block.Name].Color
 
-    if Block is not None:
-        if Block.Mineability > 1:
-            print(str(Block.Mineability))
-            Block.Mineability -= 1
-            RGB = list(Block.Color)
-            RGB[0] = RGB[0] // 1.2
-            RGB[1] = RGB[1] // 1.2
-            RGB[2] = RGB[2] // 1.2
-            Block.Color = (RGB[0], RGB[1], RGB[2])
-        elif Block.Mineability == 1:
-            print(str(Block.Mineability))
+
+def HandleCollision(X, Y):
+    _Block = Level.Get(X, Y)
+    print('Coordinates: ' + str(X) + '|' + str(Y))
+    print('Block: ' + str(_Block.X) + '|' + str(_Block.Y))
+
+    if _Block is not None:
+        if _Block.Mineability > 1:
+            print(str(_Block.Mineability))
+            _Block.Mineability -= 1
+            RGB = list(_Block.Color)
+            RGB[0] = RGB[0] // 0.9
+            _Block.Color = (RGB[0], RGB[1], RGB[2])
+        elif _Block.Mineability == 1:
+            print(str(_Block.Mineability))
             Level.Set(X, Y, 'Floor')
         else:
             return
@@ -312,6 +323,7 @@ def MovePlayer(DeltaX, DeltaY):
         Level.Set(X, Y, 'Floor')
         Level.Set(NewX, NewY, 'Player')
         PlayerPosition = (NewX, NewY)
+        ClearMiningProgress()
     else:
         HandleCollision(NewX, NewY)
 
