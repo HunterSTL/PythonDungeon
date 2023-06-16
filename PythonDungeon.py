@@ -68,7 +68,8 @@ Blocks = {
     'WallMedium': Block(3, 'Wall3', None, None, 10, 1, 0, (60, 60, 60)),
     'WallHard': Block(3, 'Wall3', None, None, 15, 1, 0, (50, 50, 50)),
     'Opening': Block(4, 'Opening', None, None, 0, 1, 0, (0, 0, 0)),
-    'Chest': Block(5, 'Chest', None, None, 0, 1, 1, (140, 70, 20))
+    'Chest': Block(5, 'Chest', None, None, 0, 1, 1, (140, 70, 20)),
+    'Debug': Block('D', 'Debug', None, None, 0, 1, 0, (200, 100, 0))
 }
 
 
@@ -107,6 +108,10 @@ def AddOpenings():
         if Block is not None:
             if Block.Name[0:4] == 'Wall':
                 Level.Set(X, Y, 'Opening')
+
+
+def IsValid(Block, Length):
+    Valid = True
 
 
 def AddRubble():
@@ -148,10 +153,42 @@ def AddRubble():
             # Add the line segment as walls
             X = X - DeltaX
             Y = Y - DeltaY
-
             for _ in range(Length):
                 Level.Set(X, Y, GetWallName(random.randint(1,3)))
                 count += 1
+
+                #Left
+                if DeltaX == 1:
+                    NextBlock = Level.Get(X, Y + 2)
+
+                    if NextBlock is not None:
+                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
+                            if random.random() < 0.7:
+                                Level.Set(X, Y + 1, GetWallName(random.randint(1, 3)))
+                else:
+                    NextBlock = Level.Get(X + 1, Y)
+
+                    if NextBlock is not None:
+                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
+                            if random.random() < 0.8:
+                                Level.Set(X, Y + 1, GetWallName(random.randint(1, 3)))
+
+                #Right
+                if DeltaX == 1:
+                    NextBlock = Level.Get(X, Y - 1)
+
+                    if NextBlock is not None:
+                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
+                            if random.random() < 0.7:
+                                Level.Set(X, Y - 1, GetWallName(random.randint(1, 3)))
+                else:
+                    NextBlock = Level.Get(X - 1, Y)
+
+                    if NextBlock is not None:
+                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
+                            if random.random() < 0.8:
+                                Level.Set(X - 1, Y, GetWallName(random.randint(1, 3)))
+                        
                 X -= DeltaX
                 Y -= DeltaY
 
@@ -189,7 +226,7 @@ def AddChests():
             if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
                 WallCount += 1
 
-        if WallCount >= 3:
+        if WallCount == 3:
             # Place the chest block
             Level.Set(X, Y, 'Chest')
             ChestCount += 1
@@ -372,9 +409,9 @@ def UpdateScreen():
         Clock.tick(60)
 
 
-Debug = 1
+Debug = 0
 GridWidth = 30
-GridHeight = 20
+GridHeight = 30
 GridScaling = 25
 RubbleCount = GridWidth * GridHeight // 3
 ChestCountMin = 1
