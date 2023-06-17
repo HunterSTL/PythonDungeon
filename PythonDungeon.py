@@ -422,9 +422,10 @@ def MovePlayer(DeltaX, DeltaY):
 def UpdateScreen():
     pygame.init()
     ScreenWidth = GridWidth * GridScaling
-    ScreenHeight = GridHeight * GridScaling
+    ScreenHeight = GridHeight * GridScaling + HotbarSize
     Screen = pygame.display.set_mode((ScreenWidth, ScreenHeight))
     Clock = pygame.time.Clock()
+    Font = pygame.font.SysFont(None, GridScaling * 2)
 
     if Debug == 1:
         DebugScreen()
@@ -459,6 +460,8 @@ def UpdateScreen():
                         Square = pygame.Rect(X * GridScaling, Y * GridScaling, GridScaling, GridScaling)
                         pygame.draw.rect(Screen, Block.Color, Square)
 
+        UICoins = Font.render('Coins: ' + str(Game.Coins), True, (230, 190, 80))
+        Screen.blit(UICoins, (ScreenWidth - ScreenWidth // 3, ScreenHeight - ScreenHeight // 20))
         pygame.display.flip()
         Clock.tick(60)
 
@@ -466,7 +469,8 @@ def UpdateScreen():
 Debug = 0
 GridWidth = 30
 GridHeight = 30
-GridScaling = 25
+GridScaling = 15
+HotbarSize = GridScaling * 2
 RubbleCount = GridWidth * GridHeight // 3
 ChestCountMin = 1
 ChestCountMax = 5
