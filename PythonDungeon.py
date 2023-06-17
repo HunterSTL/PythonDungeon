@@ -59,6 +59,15 @@ class Level:
             self.Openings = []
         self.Openings.append(Block)
 
+class Game:
+    def __init__(self, HP, Coins, Difficulty):
+        self.HP = HP
+        self.Coins = Coins
+        self.Difficulty = Difficulty
+
+    def AddCoins(self, Amount):
+        self.Coins += Amount
+        print(str(Amount) + ' Coins added')
 
 Blocks = {
     'Player': Block('P', 'Player', None, None, 0, 0, 0, (255, 0, 0)),
@@ -67,8 +76,9 @@ Blocks = {
     'WallSoft': Block(2, 'Wall2', None, None, 5, 1, 0, (70, 70, 70)),
     'WallMedium': Block(3, 'Wall3', None, None, 10, 1, 0, (60, 60, 60)),
     'WallHard': Block(3, 'Wall3', None, None, 15, 1, 0, (50, 50, 50)),
-    'Opening': Block(4, 'Opening', None, None, 0, 1, 0, (0, 0, 0)),
-    'Chest': Block(5, 'Chest', None, None, 0, 1, 1, (140, 70, 20)),
+    'Opening': Block('O', 'Opening', None, None, 0, 1, 0, (0, 0, 0)),
+    'Chest': Block('C', 'Chest', None, None, 0, 1, 1, (140, 70, 20)),
+    'Gold': Block('G', 'Gold', None, None, 1, 1, 0, (230, 190, 80)),
     'Debug': Block('D', 'Debug', None, None, 0, 1, 0, (200, 100, 0))
 }
 
@@ -108,10 +118,6 @@ def AddOpenings():
         if Block is not None:
             if Block.Name[0:4] == 'Wall':
                 Level.Set(X, Y, 'Opening')
-
-
-def IsValid(Block, Length):
-    Valid = True
 
 
 def AddRubble():
@@ -199,17 +205,17 @@ def AddRubble():
 def AddChests():
     EmptyBlocks = []
 
-    # Collect all empty blocks as potential starting positions
+    # Collect all empty blocks as potential spawns
     for X in range(1, GridWidth + 1):
         for Y in range(1, GridHeight + 1):
             Block = Level.Get(X, Y)
+            
             if Block is not None:
                 if Block.Name == 'Floor':
                     EmptyBlocks.append((X, Y))
 
     ChestCount = 0
     DesiredChestCount = random.randint(ChestCountMin, ChestCountMax)
-    print('ChestCount: ' + str(DesiredChestCount))
 
     while ChestCount < DesiredChestCount:
         if not EmptyBlocks:
@@ -235,11 +241,51 @@ def AddChests():
         EmptyBlocks.remove((X, Y))
 
 
+def AddGold():
+    EmptyBlocks = []
+
+    # Collect all empty blocks as potential spawns
+    for X in range(1, GridWidth + 1):
+        for Y in range(1, GridHeight + 1):
+            Block = Level.Get(X, Y)
+            
+            if Block is not None:
+                if Block.Name == 'Floor':
+                    EmptyBlocks.append((X, Y))
+
+    GoldCount = 0
+    DesiredGoldCount = random.randint(2, 4)
+
+    while GoldCount < DesiredGoldCount:
+        if not EmptyBlocks:
+            break
+
+        # Choose a random empty block from the available options
+        X, Y = random.choice(EmptyBlocks)
+        Block = Level.Get(X, Y)
+
+        # Check if the chosen block touches four wall blocks
+        WallCount = 0
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            AdjacentBlock = Level.Get(X + dx, Y + dy)
+            if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
+                WallCount += 1
+
+        if WallCount == 4:
+            # Place the gold block
+            Level.Set(X, Y, 'Gold')
+            GoldCount += 1
+
+        # Remove the chosen block from the list of empty blocks
+        EmptyBlocks.remove((X, Y))
+
+
 def CreateLevel():
     AddRubble()
     CreateWalls()
     AddOpenings()
     AddChests()
+    AddGold()
 
 
 def PlacePlayer():
@@ -250,6 +296,7 @@ def PlacePlayer():
     for X in range(1, GridWidth + 1):
         for Y in range(1, GridHeight + 1):
             Block = Level.Get(X, Y)
+            
             if Block is not None:
                 if Block.Name == 'Floor':
                     EmptyBlocks.append((X, Y))
@@ -327,6 +374,12 @@ def ClearMiningProgress():
                 _Block.Color = Blocks[_Block.Name].Color
 
 
+def Mine(Block):
+    if Block.Name == 'Gold':
+        Coins = random.randint(1, 5) + Game.Difficulty
+        Game.AddCoins(Coins)
+
+
 def HandleCollision(X, Y):
     _Block = Level.Get(X, Y)
     print('Coordinates: ' + str(X) + '|' + str(Y))
@@ -341,6 +394,7 @@ def HandleCollision(X, Y):
             _Block.Color = (RGB[0], RGB[1], RGB[2])
         elif _Block.Mineability == 1:
             print(str(_Block.Mineability))
+            Mine(_Block)
             Level.Set(X, Y, 'Floor')
         else:
             return
@@ -416,6 +470,8 @@ GridScaling = 25
 RubbleCount = GridWidth * GridHeight // 3
 ChestCountMin = 1
 ChestCountMax = 5
+
+Game = Game(10, 0, 0)
 
 Level = Level()
 Level.Create(GridHeight, GridWidth)
