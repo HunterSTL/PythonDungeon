@@ -60,8 +60,9 @@ class Level:
         self.Openings.append(Block)
 
 class Game:
-    def __init__(self, HP, Coins, Difficulty):
+    def __init__(self, HP, MaxHP, Coins, Difficulty):
         self.HP = HP
+        self.MaxHP = MaxHP
         self.Coins = Coins
         self.Difficulty = Difficulty
 
@@ -419,13 +420,30 @@ def MovePlayer(DeltaX, DeltaY):
         HandleCollision(NewX, NewY)
 
 
+def RenderUI(Screen, ScreenWidth, ScreenHeight):
+    Font = pygame.font.SysFont(None, GridScaling * 2)
+
+    #Coins
+    UICoins = Font.render('Coins: ' + str(Game.Coins), True, (230, 190, 80))
+    Screen.blit(UICoins, (ScreenWidth - ScreenWidth // 3, ScreenHeight - ScreenHeight // 20))
+
+    #Healthbar
+    HealthbarSize = ScreenWidth // 3
+    HPFloat = Game.HP / Game.MaxHP
+    Healthbar = pygame.Rect(0, GridHeight * GridScaling + GridScaling // 2, HealthbarSize, GridScaling)
+    pygame.draw.rect(Screen, (200, 0, 0), Healthbar)
+    Healthbar = pygame.Rect(HealthbarSize - (HealthbarSize * (1 - HPFloat)), GridHeight * GridScaling + GridScaling // 2, HealthbarSize - HealthbarSize * HPFloat, GridScaling)
+    pygame.draw.rect(Screen, (50, 0, 0), Healthbar)
+    
+    
+
+
 def UpdateScreen():
     pygame.init()
     ScreenWidth = GridWidth * GridScaling
     ScreenHeight = GridHeight * GridScaling + HotbarSize
     Screen = pygame.display.set_mode((ScreenWidth, ScreenHeight))
     Clock = pygame.time.Clock()
-    Font = pygame.font.SysFont(None, GridScaling * 2)
 
     if Debug == 1:
         DebugScreen()
@@ -460,8 +478,7 @@ def UpdateScreen():
                         Square = pygame.Rect(X * GridScaling, Y * GridScaling, GridScaling, GridScaling)
                         pygame.draw.rect(Screen, Block.Color, Square)
 
-        UICoins = Font.render('Coins: ' + str(Game.Coins), True, (230, 190, 80))
-        Screen.blit(UICoins, (ScreenWidth - ScreenWidth // 3, ScreenHeight - ScreenHeight // 20))
+        RenderUI(Screen, ScreenWidth, ScreenHeight)
         pygame.display.flip()
         Clock.tick(60)
 
@@ -469,13 +486,13 @@ def UpdateScreen():
 Debug = 0
 GridWidth = 30
 GridHeight = 30
-GridScaling = 15
+GridScaling = 25
 HotbarSize = GridScaling * 2
 RubbleCount = GridWidth * GridHeight // 3
 ChestCountMin = 1
 ChestCountMax = 5
 
-Game = Game(10, 0, 0)
+Game = Game(10, 10, 0, 0)
 
 Level = Level()
 Level.Create(GridHeight, GridWidth)
