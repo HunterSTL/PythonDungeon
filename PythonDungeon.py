@@ -59,16 +59,23 @@ class Level:
             self.Openings = []
         self.Openings.append(Block)
 
-class Game:
-    def __init__(self, HP, MaxHP, Coins, Difficulty):
+class Player:
+    def __init__(self, X, Y, HP, MaxHP, Coins, Facing):
+        self.X = X
+        self.Y = Y
         self.HP = HP
         self.MaxHP = MaxHP
         self.Coins = Coins
         self.Difficulty = Difficulty
+        self.Facing = Facing
 
     def AddCoins(self, Amount):
         self.Coins += Amount
         print(str(Amount) + ' Coins added')
+
+    def UpdatePosition(self, X, Y):
+        self.X = X
+        self.Y = Y
 
 Blocks = {
     'Player': Block('P', 'Player', None, None, 0, 0, 0, (255, 0, 0)),
@@ -290,7 +297,6 @@ def CreateLevel():
 
 
 def PlacePlayer():
-    global PlayerPosition
     EmptyBlocks = []
 
     # Collect all empty blocks as potential starting positions
@@ -304,11 +310,12 @@ def PlacePlayer():
 
     # Choose a random empty block from the available options
     if EmptyBlocks:
-        PlayerPosition = random.choice(EmptyBlocks)
+        SpawnBlock = random.choice(EmptyBlocks)
 
     # Set the chosen position as the player's starting point
-    X, Y = PlayerPosition
+    X, Y = SpawnBlock
     Level.Set(X, Y, 'Player')
+    Player.UpdatePosition(X, Y)
 
 
 def DebugScreen():
@@ -375,38 +382,57 @@ def ClearMiningProgress():
                 _Block.Color = Blocks[_Block.Name].Color
 
 
-def Mine(Block):
-    if Block.Name == 'Gold':
-        Coins = random.randint(1, 5) + Game.Difficulty
-        Game.AddCoins(Coins)
+def MineBlock(Direction):
+    X = Player.X
+    Y = Player.Y
 
-
-def HandleCollision(X, Y):
-    _Block = Level.Get(X, Y)
-    print('Coordinates: ' + str(X) + '|' + str(Y))
-    print('Block: ' + str(_Block.X) + '|' + str(_Block.Y))
+    #North
+    if Player.Facing == 1:
+        _Block = Level.Get(X, Y + 1)
+    #East
+    elif Player.Facing == 2:
+        _Block = Level.Get(X + 1, Y)
+    #South
+    elif Player.Facing == 3:
+        _Block = Level.Get(X, Y - 1)
+    #West
+    elif Player.Facing == 4:
+        _Block = Level.Get(X - 1, Y)
 
     if _Block is not None:
         if _Block.Mineability > 1:
-            print(str(_Block.Mineability))
             _Block.Mineability -= 1
             RGB = list(_Block.Color)
             RGB[0] = RGB[0] // 0.9
             _Block.Color = (RGB[0], RGB[1], RGB[2])
         elif _Block.Mineability == 1:
-            print(str(_Block.Mineability))
-            Mine(_Block)
-            Level.Set(X, Y, 'Floor')
+            if _Block.Name == 'Gold':
+                Coins = random.randint(1, 5) + Difficulty
+                Player.AddCoins(Coins)
+            Level.Set(_Block.X, _Block.Y, 'Floor')
         else:
             return
 
 
 def MovePlayer(DeltaX, DeltaY):
-    global PlayerPosition
-    X, Y = PlayerPosition
+    X = Player.X
+    Y = Player.Y
     NewX = X + DeltaX
     NewY = Y + DeltaY
     Block = Level.Get(NewX, NewY)
+
+    #Moving North
+    if DeltaY == 1:
+        Player.Facing = 1
+    #Facing East
+    elif DeltaX == 1:
+        Player.Facing = 2
+    #Facing South
+    elif DeltaY == -1:
+        Player.Facing = 3
+    #Facing West
+    elif DeltaX == -1:
+        Player.Facing = 4
 
     if Block is None:
         return
@@ -414,22 +440,20 @@ def MovePlayer(DeltaX, DeltaY):
     if Block.Collision == 0:
         Level.Set(X, Y, 'Floor')
         Level.Set(NewX, NewY, 'Player')
-        PlayerPosition = (NewX, NewY)
+        Player.UpdatePosition(NewX, NewY)
         ClearMiningProgress()
-    else:
-        HandleCollision(NewX, NewY)
 
 
 def RenderUI(Screen, ScreenWidth, ScreenHeight):
     Font = pygame.font.SysFont(None, GridScaling * 2)
 
     #Coins
-    UICoins = Font.render('Coins: ' + str(Game.Coins), True, (230, 190, 80))
+    UICoins = Font.render('Coins: ' + str(Player.Coins), True, (230, 190, 80))
     Screen.blit(UICoins, (ScreenWidth - ScreenWidth // 3, ScreenHeight - ScreenHeight // 20))
 
     #Healthbar
     HealthbarSize = ScreenWidth // 3
-    HPFloat = Game.HP / Game.MaxHP
+    HPFloat = Player.HP / Player.MaxHP
     Healthbar = pygame.Rect(0, GridHeight * GridScaling + GridScaling // 2, HealthbarSize, GridScaling)
     pygame.draw.rect(Screen, (200, 0, 0), Healthbar)
     Healthbar = pygame.Rect(HealthbarSize - (HealthbarSize * (1 - HPFloat)), GridHeight * GridScaling + GridScaling // 2, HealthbarSize - HealthbarSize * HPFloat, GridScaling)
@@ -444,6 +468,7 @@ def UpdateScreen():
     ScreenHeight = GridHeight * GridScaling + HotbarSize
     Screen = pygame.display.set_mode((ScreenWidth, ScreenHeight))
     Clock = pygame.time.Clock()
+    pygame.key.set_repeat(200, 50)
 
     if Debug == 1:
         DebugScreen()
@@ -462,6 +487,8 @@ def UpdateScreen():
                     MovePlayer(-1, 0)
                 elif event.key == pygame.K_RIGHT:
                     MovePlayer(1, 0)
+                elif event.key == pygame.K_SPACE:
+                    MineBlock(Player.Facing)
                 if Debug == 1:
                     DebugScreen()
 
@@ -487,12 +514,13 @@ Debug = 0
 GridWidth = 30
 GridHeight = 30
 GridScaling = 25
+Difficulty = 0
 HotbarSize = GridScaling * 2
 RubbleCount = GridWidth * GridHeight // 3
 ChestCountMin = 1
 ChestCountMax = 5
 
-Game = Game(10, 10, 0, 0)
+Player = Player(None, None, 10, 10, 0, 1)
 
 Level = Level()
 Level.Create(GridHeight, GridWidth)
