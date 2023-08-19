@@ -1,5 +1,6 @@
 import pygame
 import random
+#from CaveSimulation import CaveSimulation
 
 class Block:
     def __init__(self, ID, Name, X, Y, Mineability, Collision, Storage, Color):
@@ -27,6 +28,9 @@ class Block:
         Level.Grid[Level.Rows - Y][X - 1] = self
 
 class Level:
+    def __init__(self, GridHeight, GridWidth):
+        self.Create(GridHeight, GridWidth)
+
     def Create(self, Rows, Columns):
         self.Rows = Rows
         self.Columns = Columns
@@ -38,6 +42,8 @@ class Level:
                 Row.append(_Block)
             Grid.append(Row)
         self.Grid = Grid
+        self.Build()
+        self.PlacePlayer()
 
     def Get(self, X, Y):
         if 1 <= X <= self.Columns and 1 <= Y <= self.Rows:
@@ -46,9 +52,7 @@ class Level:
             return None
 
     def Set(self, X, Y, Blockname):
-        #Create Instance of Block
         _Block = Block.Create(Blockname, X, Y)
-        #Fill Coordinates on Block
         _Block.Set(X, Y, self)
 
         if Blockname == 'Opening':
@@ -58,6 +62,141 @@ class Level:
         if not hasattr(self, 'Openings'):
             self.Openings = []
         self.Openings.append(Block)
+
+    def AddRubble(self):
+        #_CaveSimulation = CaveSimulation(grid_height=, grid_width)
+        pass
+
+    def CreateWalls(self):
+        for X in range(1, GridWidth + 1):
+            for Y in range(1, GridHeight + 1):
+                if X == 1 or X == GridWidth or Y == 1 or Y == GridHeight:
+                    self.Set(X, Y, 'WallBorder')
+
+    def AddOpenings(self):
+        for Wall in range(1, 5):
+            if Wall == 1:
+                Y = 1
+                X = random.randint(2, GridWidth - 1)
+            elif Wall == 2:
+                X = GridWidth
+                Y = random.randint(2, GridHeight - 1)
+            elif Wall == 3:
+                Y = GridHeight
+                X = random.randint(2, GridWidth - 1)
+            elif Wall == 4:
+                X = 1
+                Y = random.randint(2, GridHeight - 1)
+
+            Block = self.Get(X, Y)
+
+            if Block is not None:
+                if Block.Name[0:4] == 'Wall':
+                    self.Set(X, Y, 'Opening')
+
+    def AddChests(self):
+        EmptyBlocks = []
+
+        # Collect all empty blocks as potential spawns
+        for X in range(1, GridWidth + 1):
+            for Y in range(1, GridHeight + 1):
+                Block = self.Get(X, Y)
+                
+                if Block is not None:
+                    if Block.Name == 'Floor':
+                        EmptyBlocks.append((X, Y))
+
+        ChestCount = 0
+        DesiredChestCount = random.randint(ChestCountMin, ChestCountMax)
+
+        while ChestCount < DesiredChestCount:
+            if not EmptyBlocks:
+                break
+
+            # Choose a random empty block from the available options
+            X, Y = random.choice(EmptyBlocks)
+            Block = self.Get(X, Y)
+
+            # Check if the chosen block touches two or more wall blocks
+            WallCount = 0
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                AdjacentBlock = self.Get(X + dx, Y + dy)
+                if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
+                    WallCount += 1
+
+            if WallCount == 3:
+                # Place the chest block
+                self.Set(X, Y, 'Chest')
+                ChestCount += 1
+
+            # Remove the chosen block from the list of empty blocks
+            EmptyBlocks.remove((X, Y))
+
+    def AddGold(self):
+        EmptyBlocks = []
+
+        # Collect all empty blocks as potential spawns
+        for X in range(1, GridWidth + 1):
+            for Y in range(1, GridHeight + 1):
+                Block = self.Get(X, Y)
+                
+                if Block is not None:
+                    if Block.Name == 'Floor':
+                        EmptyBlocks.append((X, Y))
+
+        GoldCount = 0
+        DesiredGoldCount = random.randint(2, 4)
+
+        while GoldCount < DesiredGoldCount:
+            if not EmptyBlocks:
+                break
+
+            # Choose a random empty block from the available options
+            X, Y = random.choice(EmptyBlocks)
+            Block = self.Get(X, Y)
+
+            # Check if the chosen block touches four wall blocks
+            WallCount = 0
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                AdjacentBlock = self.Get(X + dx, Y + dy)
+                if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
+                    WallCount += 1
+
+            if WallCount == 4:
+                # Place the gold block
+                self.Set(X, Y, 'Gold')
+                GoldCount += 1
+
+            # Remove the chosen block from the list of empty blocks
+            EmptyBlocks.remove((X, Y))
+
+    def PlacePlayer(self):
+        EmptyBlocks = []
+
+        # Collect all empty blocks as potential starting positions
+        for X in range(1, GridWidth + 1):
+            for Y in range(1, GridHeight + 1):
+                Block = self.Get(X, Y)
+                
+                if Block is not None:
+                    if Block.Name == 'Floor':
+                        EmptyBlocks.append((X, Y))
+
+        # Choose a random empty block from the available options
+        if EmptyBlocks:
+            SpawnBlock = random.choice(EmptyBlocks)
+
+        # Set the chosen position as the player's starting point
+        X, Y = SpawnBlock
+        self.Set(X, Y, 'Player')
+        Player.UpdatePosition(X, Y)
+    
+    def Build(self):
+        self.AddRubble()
+        self.CreateWalls()
+        self.AddOpenings()
+        self.AddChests()
+        self.AddGold()
 
 class Player:
     def __init__(self, X, Y, HP, MaxHP, Coins, Facing):
@@ -98,225 +237,6 @@ def GetWallName(Variant):
         return 'WallMedium'
     else:
         return 'WallHard'
-
-def CreateWalls():
-    for X in range(1, GridWidth + 1):
-        for Y in range(1, GridHeight + 1):
-            if X == 1 or X == GridWidth or Y == 1 or Y == GridHeight:
-                Level.Set(X, Y, 'WallBorder')
-
-
-def AddOpenings():
-    for Wall in range(1, 5):
-        if Wall == 1:
-            Y = 1
-            X = random.randint(2, GridWidth - 1)
-        elif Wall == 2:
-            X = GridWidth
-            Y = random.randint(2, GridHeight - 1)
-        elif Wall == 3:
-            Y = GridHeight
-            X = random.randint(2, GridWidth - 1)
-        elif Wall == 4:
-            X = 1
-            Y = random.randint(2, GridHeight - 1)
-
-        Block = Level.Get(X, Y)
-
-        if Block is not None:
-            if Block.Name[0:4] == 'Wall':
-                Level.Set(X, Y, 'Opening')
-
-
-def AddRubble():
-    count = 0  # Counter to keep track of added rubble
-
-    while count < RubbleCount:
-        # Generate a random line segment within the Level
-        if random.random() < 0.5:
-            # Horizontal line
-            X = random.randint(2, GridWidth - 1)
-            Y = random.randint(2, GridHeight - 1)
-            Length = random.randint(1, GridWidth // 2)
-            DeltaX = 1
-            DeltaY = 0
-        else:
-            # Vertical line
-            X = random.randint(2, GridWidth - 1)
-            Y = random.randint(2, GridHeight - 1)
-            Length = random.randint(1, GridHeight // 2)
-            DeltaX = 0
-            DeltaY = 1
-
-        # Check if the line segment intersects with any openings or Levels
-        Valid = True
-
-        for _ in range(Length):
-            Block = Level.Get(X, Y)
-            if Block is None:
-                Valid = False
-                break
-
-            if Block.Name != 'Floor' and Block.Name[0:4] != 'Wall':
-                Valid = False
-                break
-            X += DeltaX
-            Y += DeltaY
-
-        if Valid:
-            # Add the line segment as walls
-            X = X - DeltaX
-            Y = Y - DeltaY
-            for _ in range(Length):
-                Level.Set(X, Y, GetWallName(random.randint(1,3)))
-                count += 1
-
-                #Left
-                if DeltaX == 1:
-                    NextBlock = Level.Get(X, Y + 2)
-
-                    if NextBlock is not None:
-                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
-                            if random.random() < 0.7:
-                                Level.Set(X, Y + 1, GetWallName(random.randint(1, 3)))
-                else:
-                    NextBlock = Level.Get(X + 1, Y)
-
-                    if NextBlock is not None:
-                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
-                            if random.random() < 0.8:
-                                Level.Set(X, Y + 1, GetWallName(random.randint(1, 3)))
-
-                #Right
-                if DeltaX == 1:
-                    NextBlock = Level.Get(X, Y - 1)
-
-                    if NextBlock is not None:
-                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
-                            if random.random() < 0.7:
-                                Level.Set(X, Y - 1, GetWallName(random.randint(1, 3)))
-                else:
-                    NextBlock = Level.Get(X - 1, Y)
-
-                    if NextBlock is not None:
-                        if NextBlock.Name == 'Floor' or NextBlock.Name[0:4] == 'Wall':
-                            if random.random() < 0.8:
-                                Level.Set(X - 1, Y, GetWallName(random.randint(1, 3)))
-                        
-                X -= DeltaX
-                Y -= DeltaY
-
-        if count >= RubbleCount:
-            return  # Exit the function if the desired RubbleCount is reached
-
-
-def AddChests():
-    EmptyBlocks = []
-
-    # Collect all empty blocks as potential spawns
-    for X in range(1, GridWidth + 1):
-        for Y in range(1, GridHeight + 1):
-            Block = Level.Get(X, Y)
-            
-            if Block is not None:
-                if Block.Name == 'Floor':
-                    EmptyBlocks.append((X, Y))
-
-    ChestCount = 0
-    DesiredChestCount = random.randint(ChestCountMin, ChestCountMax)
-
-    while ChestCount < DesiredChestCount:
-        if not EmptyBlocks:
-            break
-
-        # Choose a random empty block from the available options
-        X, Y = random.choice(EmptyBlocks)
-        Block = Level.Get(X, Y)
-
-        # Check if the chosen block touches two or more wall blocks
-        WallCount = 0
-        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-            AdjacentBlock = Level.Get(X + dx, Y + dy)
-            if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
-                WallCount += 1
-
-        if WallCount == 3:
-            # Place the chest block
-            Level.Set(X, Y, 'Chest')
-            ChestCount += 1
-
-        # Remove the chosen block from the list of empty blocks
-        EmptyBlocks.remove((X, Y))
-
-
-def AddGold():
-    EmptyBlocks = []
-
-    # Collect all empty blocks as potential spawns
-    for X in range(1, GridWidth + 1):
-        for Y in range(1, GridHeight + 1):
-            Block = Level.Get(X, Y)
-            
-            if Block is not None:
-                if Block.Name == 'Floor':
-                    EmptyBlocks.append((X, Y))
-
-    GoldCount = 0
-    DesiredGoldCount = random.randint(2, 4)
-
-    while GoldCount < DesiredGoldCount:
-        if not EmptyBlocks:
-            break
-
-        # Choose a random empty block from the available options
-        X, Y = random.choice(EmptyBlocks)
-        Block = Level.Get(X, Y)
-
-        # Check if the chosen block touches four wall blocks
-        WallCount = 0
-        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-            AdjacentBlock = Level.Get(X + dx, Y + dy)
-            if AdjacentBlock is not None and AdjacentBlock.Name[0:4] == 'Wall':
-                WallCount += 1
-
-        if WallCount == 4:
-            # Place the gold block
-            Level.Set(X, Y, 'Gold')
-            GoldCount += 1
-
-        # Remove the chosen block from the list of empty blocks
-        EmptyBlocks.remove((X, Y))
-
-
-def CreateLevel():
-    AddRubble()
-    CreateWalls()
-    AddOpenings()
-    AddChests()
-    AddGold()
-
-
-def PlacePlayer():
-    EmptyBlocks = []
-
-    # Collect all empty blocks as potential starting positions
-    for X in range(1, GridWidth + 1):
-        for Y in range(1, GridHeight + 1):
-            Block = Level.Get(X, Y)
-            
-            if Block is not None:
-                if Block.Name == 'Floor':
-                    EmptyBlocks.append((X, Y))
-
-    # Choose a random empty block from the available options
-    if EmptyBlocks:
-        SpawnBlock = random.choice(EmptyBlocks)
-
-    # Set the chosen position as the player's starting point
-    X, Y = SpawnBlock
-    Level.Set(X, Y, 'Player')
-    Player.UpdatePosition(X, Y)
-
 
 def DebugScreen():
     for Row in Level.Grid:
@@ -516,15 +436,10 @@ GridHeight = 30
 GridScaling = 25
 Difficulty = 0
 HotbarSize = GridScaling * 2
-RubbleCount = GridWidth * GridHeight // 3
 ChestCountMin = 1
 ChestCountMax = 5
 
 Player = Player(None, None, 10, 10, 0, 1)
 
-Level = Level()
-Level.Create(GridHeight, GridWidth)
-
-CreateLevel()
-PlacePlayer()
+Level = Level(GridHeight, GridWidth)
 UpdateScreen()
