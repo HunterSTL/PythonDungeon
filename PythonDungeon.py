@@ -1,6 +1,6 @@
 import pygame
 import random
-#from CaveSimulation import CaveSimulation
+from CaveSimulation import CaveSimulation
 
 class Block:
     def __init__(self, ID, Name, X, Y, Mineability, Collision, Storage, Color):
@@ -64,8 +64,13 @@ class Level:
         self.Openings.append(Block)
 
     def AddRubble(self):
-        #_CaveSimulation = CaveSimulation(grid_height=, grid_width)
-        pass
+        _CaveSimulation = CaveSimulation(GridHeight, GridWidth, GridScaling, 0.5, 3, 1)
+        _CaveSimulation.simulate_grid()
+
+        for Y in range(GridHeight):
+            for X in range(GridWidth):
+                if _CaveSimulation.grid[Y][X] == 1:
+                    self.Set(X + 1, Y + 1, GetWallName(random.randint(1,3)))
 
     def CreateWalls(self):
         for X in range(1, GridWidth + 1):
@@ -133,7 +138,7 @@ class Level:
             EmptyBlocks.remove((X, Y))
 
     def AddGold(self):
-        EmptyBlocks = []
+        WallBlocks = []
 
         # Collect all empty blocks as potential spawns
         for X in range(1, GridWidth + 1):
@@ -141,18 +146,18 @@ class Level:
                 Block = self.Get(X, Y)
                 
                 if Block is not None:
-                    if Block.Name == 'Floor':
-                        EmptyBlocks.append((X, Y))
+                    if Block.Name[0:4] == 'Wall':
+                        WallBlocks.append((X, Y))
 
         GoldCount = 0
         DesiredGoldCount = random.randint(2, 4)
 
         while GoldCount < DesiredGoldCount:
-            if not EmptyBlocks:
+            if not WallBlocks:
                 break
 
             # Choose a random empty block from the available options
-            X, Y = random.choice(EmptyBlocks)
+            X, Y = random.choice(WallBlocks)
             Block = self.Get(X, Y)
 
             # Check if the chosen block touches four wall blocks
@@ -168,7 +173,7 @@ class Level:
                 GoldCount += 1
 
             # Remove the chosen block from the list of empty blocks
-            EmptyBlocks.remove((X, Y))
+            WallBlocks.remove((X, Y))
 
     def PlacePlayer(self):
         EmptyBlocks = []

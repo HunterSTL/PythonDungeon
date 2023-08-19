@@ -77,8 +77,3 @@ class CaveSimulation:
             pygame.display.flip()
 
         pygame.quit()
-
-# Example usage
-simulation = CaveSimulation(50, 50, 20, 0.45, 2, 2)
-simulation.simulate_grid()
-simulation.run_simulation()
