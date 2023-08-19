@@ -20,9 +20,11 @@ class Block:
             _Block = cls(BlockDictionary.ID, Blockname, X, Y, BlockDictionary.Mineability, BlockDictionary.Collision, BlockDictionary.Storage, BlockDictionary.Color)
             return _Block
 
-    def Set(self, X, Y):
+    def Set(self, X, Y, Level):
         self.X = X
         self.Y = Y
+        #Insert Block into Grid
+        Level.Grid[Level.Rows - Y][X - 1] = self
 
 class Level:
     def Create(self, Rows, Columns):
@@ -47,9 +49,7 @@ class Level:
         #Create Instance of Block
         _Block = Block.Create(Blockname, X, Y)
         #Fill Coordinates on Block
-        _Block.Set(X, Y)
-        #Insert Block into Grid
-        self.Grid[self.Rows - Y][X - 1] = _Block
+        _Block.Set(X, Y, self)
 
         if Blockname == 'Opening':
             self.StoreOpening(_Block)
